@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagelijkse Mop</title>
+    <title>MoppenTrommel NL</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #eef2f3;
+            background: #f4f7f6;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             min-height: 100vh;
             margin: 0;
             padding: 20px;
@@ -19,143 +18,160 @@
 
         .card {
             background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            padding: 35px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             text-align: center;
             max-width: 450px;
             width: 100%;
+            margin-top: 20px;
         }
 
-        h2 { color: #333; line-height: 1.4; margin-bottom: 25px; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 20px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        h2 { color: #2c3e50; font-size: 22px; line-height: 1.5; }
 
         #answer {
             display: none;
-            margin: 20px 0;
+            margin: 25px 0;
             font-weight: bold;
             font-size: 24px;
             color: #27ae60;
-            animation: fadeIn 0.5s;
+            padding: 15px;
+            background: #f0fff4;
+            border-radius: 10px;
         }
 
-        .controls { display: flex; flex-direction: column; gap: 10px; }
-        
+        .btn-container { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+
         button {
-            padding: 15px;
-            font-size: 18px;
+            padding: 16px;
+            font-size: 16px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: 0.2s;
-            font-weight: 600;
+            font-weight: bold;
+            transition: 0.3s;
         }
 
         .primary-btn { background: #000; color: #fff; }
-        .fav-btn { background: #f1c40f; color: #000; }
-        .next-btn { background: #ecf0f1; color: #333; font-size: 14px; }
+        .star-btn { background: #ffcc00; color: #000; }
+        .refresh-btn { background: #eee; color: #555; }
 
-        button:hover { opacity: 0.8; transform: translateY(-2px); }
+        button:active { transform: scale(0.98); }
 
-        .saved-section {
-            margin-top: 30px;
+        .saved-list {
+            margin-top: 40px;
             width: 100%;
             max-width: 450px;
         }
 
-        .fav-item {
+        .fav-card {
             background: #fff;
-            margin-bottom: 10px;
             padding: 15px;
-            border-radius: 10px;
-            border-left: 5px solid #f1c40f;
-            font-size: 14px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border-left: 6px solid #ffcc00;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2 id="question">Laden...</h2>
+        <div id="loader" class="loader"></div>
+        <h2 id="joke-q">Laden van een verse mop...</h2>
         <div id="answer"></div>
 
-        <div class="controls">
+        <div class="btn-container">
             <button class="primary-btn" onclick="showAnswer()">💡 Toon Antwoord</button>
-            <button class="fav-btn" onclick="saveToFavorites()">⭐ Sla mop op</button>
-            <button class="next-btn" onclick="getNewJoke()">Andere mop proberen</button>
+            <button class="star-btn" onclick="saveMop()">⭐ Bewaar Mop</button>
+            <button class="refresh-btn" onclick="fetchNewJoke()">Volgende Mop ➡️</button>
         </div>
     </div>
 
-    <div class="saved-section">
-        <h3 style="text-align: center;">Jouw Favorieten</h3>
-        <div id="favoritesList"></div>
+    <div class="saved-list">
+        <h3 style="text-align: center; color: #7f8c8d;">⭐ Jouw Favorieten</h3>
+        <div id="fav-container"></div>
     </div>
 
 <script>
-    // Voeg hier je eigen moppen toe!
-    const moppen = [
-        { q: "Het is groen en het skiet van de berg?", a: "Een ski-wi!" },
-        { q: "Waarom nam de domme blondje een ladder mee naar de winkel?", a: "Omdat de prijzen zo hoog waren!" },
-        { q: "Wat is geel en roept: 'Ik ben een appel'?", a: "Een banaan met een identiteitscrisis!" },
-        { q: "Hoe noem je een konijn met een zonnebril?", a: "Een fel-be-haard!" },
-        { q: "Wat is het toppunt van snelheid?", a: "Een slak die uit de bocht vliegt!" },
-        { q: "Waarom kan een skelet niet goed liegen?", a: "Je kijkt er zo dwars doorheen!" },
-        { q: "Het is blauw en niet zwaar?", a: "Lichtblauw!" }
-    ];
+    let currentMop = { q: "", a: "" };
 
-    let currentJoke = {};
+    async function fetchNewJoke() {
+        const qElement = document.getElementById("joke-q");
+        const aElement = document.getElementById("answer");
+        const loader = document.getElementById("loader");
 
-    function getNewJoke() {
-        // Verberg antwoord van de vorige mop
-        document.getElementById("answer").style.display = "none";
-        
-        // Kies een willekeurige mop
-        const random = Math.floor(Math.random() * moppen.length);
-        currentJoke = moppen[random];
-        
-        document.getElementById("question").innerText = currentJoke.q;
-        document.getElementById("answer").innerText = currentJoke.a;
+        // UI Reset
+        aElement.style.display = "none";
+        qElement.innerText = "Bezig met ophalen...";
+        loader.style.display = "block";
+
+        try {
+            // We gebruiken een API die willekeurige NL moppen serveert
+            const response = await fetch('https://moppen-api.vercel.app/api/random');
+            const data = await response.json();
+
+            currentMop.q = data.setup;
+            currentMop.a = data.punchline;
+
+            qElement.innerText = currentMop.q;
+            aElement.innerText = currentMop.a;
+        } catch (error) {
+            qElement.innerText = "Oeps! De moppentrommel zit even op slot. Probeer het opnieuw.";
+            console.error(error);
+        } finally {
+            loader.style.display = "none";
+        }
     }
 
     function showAnswer() {
         document.getElementById("answer").style.display = "block";
     }
 
-    function saveToFavorites() {
-        let saved = JSON.parse(localStorage.getItem("mijnMoppen")) || [];
+    function saveMop() {
+        let favorites = JSON.parse(localStorage.getItem("moppenFavorieten")) || [];
         
-        // Check of hij al opgeslagen is
-        if (!saved.some(m => m.q === currentJoke.q)) {
-            saved.push(currentJoke);
-            localStorage.setItem("mijnMoppen", JSON.stringify(saved));
-            displayFavorites();
-            alert("Mop bewaard!");
+        if (!favorites.some(m => m.q === currentMop.q)) {
+            favorites.push({...currentMop});
+            localStorage.setItem("moppenFavorieten", JSON.stringify(favorites));
+            renderFavorites();
         }
     }
 
-    function displayFavorites() {
-        const list = document.getElementById("favoritesList");
-        const saved = JSON.parse(localStorage.getItem("mijnMoppen")) || [];
+    function renderFavorites() {
+        const container = document.getElementById("fav-container");
+        const favorites = JSON.parse(localStorage.getItem("moppenFavorieten")) || [];
         
-        if (saved.length === 0) {
-            list.innerHTML = "<p style='text-align:center; color:#888;'>Nog geen favorieten.</p>";
+        if (favorites.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:#999;'>Nog geen moppen opgeslagen.</p>";
             return;
         }
 
-        list.innerHTML = saved.map(m => `
-            <div class="fav-item">
-                <strong>V: ${m.q}</strong><br>
-                <span>A: ${m.a}</span>
+        container.innerHTML = favorites.map(m => `
+            <div class="fav-card">
+                <strong>${m.q}</strong><br>
+                <span style="color: #27ae60;">${m.a}</span>
             </div>
-        `).reverse().join(""); // Nieuwste bovenaan
+        `).reverse().join("");
     }
 
-    // DIT IS DE BELANGRIJKE STAP:
-    // Zodra de pagina laadt (na de scan), wordt getNewJoke direct uitgevoerd.
+    // Automatisch laden bij openen (scannen)
     window.onload = () => {
-        getNewJoke();
-        displayFavorites();
+        fetchNewJoke();
+        renderFavorites();
     };
 </script>
 
