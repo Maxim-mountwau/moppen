@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoppenTrommel Pro</title>
+    <style>
+        :root { --primary: #000; --accent: #ffcc00; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: white; padding: 35px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 450px; width: 100%; margin-top: 20px; }
+        h2 { color: #2c3e50; font-size: 20px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+        #answer { display: none; margin: 20px 0; font-weight: bold; font-size: 22px; color: #27ae60; padding: 15px; background: #f0fff4; border-radius: 12px; animation: pop 0.3s; }
+        @keyframes pop { 0% { transform: scale(0.9); } 100% { transform: scale(1); } }
+        .btn-container { display: flex; flex-direction: column; gap: 10px; }
+        button { padding: 15px; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .primary-btn { background: var(--primary); color: #fff; }
+        .star-btn { background: var(--accent); color: #000; }
+        .refresh-btn { background: #eee; color: #555; }
+        button:active { transform: scale(0.96); }
+        .saved-list { margin-top: 30px; width: 100%; max-width: 450px; }
+        .fav-card { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid var(--accent); font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .counter { font-size: 12px; color: #999; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="counter" id="mop-counter">Mop 0 van 100</div>
+        <h2 id="joke-q">Laden...</h2>
+        <div id="answer"></div>
+
+        <div class="btn-container">
+            <button class="primary-btn" onclick="showAnswer()">💡 Toon Antwoord</button>
+            <button class="star-btn" onclick="saveMop()">⭐ Bewaar in Favorieten</button>
+            <button class="refresh-btn" onclick="getNewJoke()">Volgende Mop ➡️</button>
+        </div>
+    </div>
+
+    <div class="saved-list">
+        <h3 style="text-align: center; color: #7f8c8d;">⭐ Opgeslagen</h3>
+        <div id="fav-container"></div>
+    </div>
+
+<script>
+    const alleMoppen = [
+        { q: "Het is groen en het skiet van de berg?", a: "Een ski-wi!" },
+        { q: "Waarom neemt een dom blondje een ladder mee naar de winkel?", a: "Omdat de prijzen zo hoog zijn!" },
+        { q: "Wat is geel en roept: 'Ik ben een appel'?", a: "Een banaan met een identiteitscrisis!" },
+        { q: "Hoe noem je een konijn met een zonnebril?", a: "Een fel-be-haard!" },
+        { q: "Waarom kan een skelet niet goed liegen?", a: "Je kijkt er zo dwars doorheen!" },
+        { q: "Het is blauw en weegt niet veel?", a: "Lichtblauw!" },
+        { q: "Wat is het toppunt van geduld?", a: "Een vis op de muur tekenen en wachten tot hij wegzwemt." },
+        { q: "Waarom loopt een dom blondje in de winter met een schaar over straat?", a: "Om de kou in te snijden!" },
+        { q: "Wat is groen en roept: 'Ik ben een aardbei'?", a: "Een onrijpe aardbei!" },
+        { q: "Hoe heet een vlieg die op de wc zit?", a: "Een drol-vlieg!" },
+        { q: "Wat is oranje en roept: 'Ik ben een wortel'?", a: "Een wortel!" },
+        { q: "Wat is het toppunt van snelheid?", a: "Een slak die uit de bocht vliegt!" },
+        { q: "Waarom heeft een koe een bel om haar nek?", a: "Omdat haar horens het niet doen!" },
+        { q: "Hoe noem je een boomerang die niet terugkomt?", a: "Een stok!" },
+        { q: "Wat is rood en zit op een hek?", a: "Verf!" },
+        { q: "Wat is zwart, wit en rood?", a: "Een zebra met zonnebrand!" },
+        { q: "Waarom gaat een dom blondje op de grond zitten in de bioscoop?", a: "Ze hoorde dat de film ging vallen!" },
+        { q: "Hoe noem je een vlieg zonder vleugels?", a: "Een loop!" },
+        { q: "Wat is klein, rond en lacht?", a: "Een giebel-erwt!" },
+        { q: "Waarom neemt een skelet nooit een bad?", a: "Omdat hij dan een rammelaar wordt!" },
+        { q: "Wat is bruin en plakt?", a: "Een plak-stok!" },
+        { q: "Wat is wit en ontploft?", a: "Een boem-kool!" },
+        { q: "Hoe noem je een schaap zonder pootjes?", a: "Een wolkje!" },
+        { q: "Wat is het toppunt van nieuwsgierigheid?", a: "Door het sleutelgat van een glazen deur kijken!" },
+        { q: "Waarom dragen olifanten groene sportschoenen?", a: "Dan vallen ze niet op in het gras!" },
+        { q: "Hoe noem je een dief die in de bibliotheek steelt?", a: "Een boek-houder!" },
+        { q: "Wat is de overeenkomst tussen een ober en een wolk?", a: "Als ze weggaan wordt het mooi weer!" },
+        { q: "Waarom kijkt een dom blondje door het sleutelgat van de koelkast?", a: "Ze wil zien of het lichtje wel echt uitgaat!" },
+        { q: "Hoe noem je een hond zonder poten?", a: "Die hoef je niet te roepen, die komt toch niet!" },
+        { q: "Wat is groen en erg onbeleefd?", a: "Een brutaal-tje!" },
+        { q: "Hoe heet een konijn dat naar de sportschool gaat?", a: "Een sports-haas!" },
+        { q: "Waarom heeft een giraf zo'n lange nek?", a: "Omdat zijn kop zo ver van zijn lichaam zit!" },
+        { q: "Wat is zwart en als het uit de boom valt is je kachel kapot?", a: "Je kachel!" },
+        { q: "Het is geel en het hangt achter een auto?", a: "Een banaan-anhanger!" },
+        { q: "Wat is het toppunt van zelfvertrouwen?", a: "Tijdens je examen je leraar om een voldoende vragen!" },
+        { q: "Waarom heeft een dom blondje een krant op haar buik?", a: "Ze wil op de hoogte blijven!" },
+        { q: "Wat is groen en het plakt?", a: "Kermit de Sticker!" },
+        { q: "Hoe noem je een vlieg met een bril?", a: "Een zie-vlieg!" },
+        { q: "Wat is het lievelingseten van een computer?", a: "Chips!" },
+        { q: "Waarom kan een skelet niet goed dansen?", a: "Hij heeft geen body!" },
+        { q: "Wat is geel en lijkt op een banaan?", a: "De andere helft van de banaan!" },
+        { q: "Hoe noem je een oude sneeuwman?", a: "Water!" },
+        { q: "Wat is het verschil tussen een krokodil en een drol?", a: "Heb je weleens op een krokodil gezeten?" },
+        { q: "Waarom draagt een dom blondje twee horloges?", a: "Ze wil met haar tijd meegaan!" },
+        { q: "Wat is rood en ruikt naar verf?", a: "Rode verf!" },
+        { q: "Hoe noem je een mierenhoop zonder mieren?", a: "Een hoop!" },
+        { q: "Waarom vliegen vogels in de winter naar het zuiden?", a: "Omdat het te ver is om te lopen!" },
+        { q: "Wat is grijs en kan vliegen?", a: "Een vliegolifant!" },
+        { q: "Waarom dragen vissen nooit een das?", a: "Omdat ze geen nek hebben!" },
+        { q: "Hoe heet een slimme vis?", a: "Een wis-kun-vis!" },
+        { q: "Wat is het toppunt van beleefdheid?", a: "Klo
